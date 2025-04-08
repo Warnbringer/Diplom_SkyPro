@@ -23,3 +23,4 @@ class TestData:
 
     BASE_UI_URL = "https://passport.yandex.ru"
     url = f"{BASE_UI_URL}/login"  # Полный URL: https://api.kinopoisk.dev/v1.4/movie/search
+    KP_API_TOKEN = "B1J38JK-1VE4P0A-JB38DGJ-YMPJPKE"

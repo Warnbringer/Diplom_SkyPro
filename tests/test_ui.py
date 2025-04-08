@@ -4,156 +4,154 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
 import allure
 
+# Конфигурация
+KP_API_BASE_URL = "https://api.kinopoisk.dev/v1.4"
+KP_API_TOKEN = "B1J38JK-1VE4P0A-JB38DGJ-YMPJPKE"
+KP_UI_URL = "https://www.kinopoisk.ru/"
+WAIT_TIMEOUT = 15
 
 @pytest.fixture(scope="module")
 def browser():
-    driver = webdriver.Chrome()
+    options = webdriver.ChromeOptions()
+    options.add_argument("--start-maximized")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
+
+    driver = webdriver.Chrome(options=options)
     driver.implicitly_wait(10)
     yield driver
     driver.quit()
 
 
 @pytest.fixture(scope="module")
-def api_url():
-    return "https://api.kinopoisk.dev/v1.4/movie"
+def api_headers():
+    return {"X-API-KEY": KP_API_TOKEN}
+
+def make_api_request(endpoint, params=None, headers=None):
+    url = f"{KP_API_BASE_URL}/{endpoint}"
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    return response.json()
 
 
-@allure.feature("Поиск фильмов")
-class TestMovieSearch:
+def wait_and_click(driver, locator, timeout=WAIT_TIMEOUT):
+    element = WebDriverWait(driver, timeout).until(
+        EC.element_to_be_clickable(locator)
+    )
+    element.click()
+    return element
 
-    @allure.story("Ввод названия фильма")
-    @allure.description("Проверка, что при вводе названия фильма отображаются соответствующие результаты")
-    def test_search_by_full_title(self, browser):
-        with allure.step("Открыть страницу поиска"):
-            browser.get("https://www.kinopoisk.ru/")
 
-        with allure.step("Ввести полное название фильма"):
-            search_field = browser.find_element(By.NAME, "kp_query")
-            search_field.send_keys("Интерстеллар")
+def wait_and_send_keys(driver, locator, keys, timeout=WAIT_TIMEOUT):
+    element = WebDriverWait(driver, timeout).until(
+        EC.presence_of_element_located(locator)
+    )
+    element.clear()
+    element.send_keys(keys)
+    return element
 
-        with allure.step("Нажать кнопку поиска"):
-            search_button = browser.find_element(By.CSS_SELECTOR,
-                                                 'button .search-form-submit-button__icon').find_element(By.XPATH,
-                                                                                                         './..')
-            search_button.click()
-#
-#         with allure.step("Проверить результаты поиска"):
-#             results = WebDriverWait(browser, 10).until(
-#                 EC.presence_of_all_elements_located((By.CLASS_NAME, "movie-result"))
-#             assert len(results) > 0
-#             assert "Интерстеллар" in results[0].text \
-#  \
-#                    @ allure.story("Ввод части названия фильма") \
-#                    @ allure.description(
-#                 "Проверка, что при вводе части названия фильма отображаются соответствующие результаты")
-#
-#     def test_search_by_partial_title(self, browser):
-#         with allure.step("Открыть страницу поиска"):
-#             browser.get("https://api.kinopoisk.dev/v1.4/movie")
-#
-#         with allure.step("Ввести часть названия фильма"):
-#             search_input = browser.find_element(By.ID, "search-input")
-#             search_input.send_keys("Интер")
-#
-#         with allure.step("Нажать кнопку поиска"):
-#             browser.find_element(By.ID, "search-button").click()
-#
-#         with allure.step("Проверить результаты поиска"):
-#             results = WebDriverWait(browser, 10).until(
-#                 EC.presence_of_all_elements_located((By.CLASS_NAME, "movie-result")))
-#             assert len(results) > 0
-#             assert any("Интер" in result.text for result in results)
-#
-#     @allure.story("НФКП 19. Использование фильтров")
-#     @allure.description("Проверка работы фильтров по жанру, году и рейтингу")
-#     def test_search_with_filters(self, browser, api_url):
-#         with allure.step("Открыть страницу поиска"):
-#             browser.get("https://api.kinopoisk.dev/v1.4/movie")
-#
-#         with allure.step("Применить фильтры"):
-#             # Выбрать жанр "Фантастика"
-#             browser.find_element(By.XPATH, "//select[@id='genre']/option[text()='Фантастика']").click()
-#             # Выбрать год выпуска "2014"
-#             browser.find_element(By.XPATH, "//select[@id='year']/option[text()='2014']").click()
-#             # Установить минимальный рейтинг 8
-#             browser.find_element(By.ID, "min-rating").send_keys("8")
-#
-#         with allure.step("Нажать кнопку поиска"):
-#             browser.find_element(By.ID, "search-button").click()
-#
-#         with allure.step("Проверить результаты через UI"):
-#             results = WebDriverWait(browser, 10).until(
-#                 EC.presence_of_all_elements_located((By.CLASS_NAME, "movie-result")))
-#             assert len(results) > 0
-#
-#         with allure.step("Проверить результаты через API"):
-#             params = {
-#                 "genre": "sci-fi",
-#                 "year": 2014,
-#                 "min_rating": 8
-#             }
-#             response = requests.get(api_url, params=params)
-#             api_results = response.json()
-#             assert len(api_results) == len(results)
-#
-#     @allure.story("Поиск несуществующего фильма")
-#     @allure.description("Проверка отображения сообщения, когда фильм не найден")
-#     def test_search_non_existing_movie(self, browser):
-#         with allure.step("Открыть страницу поиска"):
-#             browser.get("https://api.kinopoisk.dev/v1.4/movie")
-#
-#         with allure.step("Ввести несуществующее название"):
-#             search_input = browser.find_element(By.ID, "search-input")
-#             search_input.send_keys("Несуществующий фильм 12345")
-#
-#         with allure.step("Нажать кнопку поиска"):
-#             browser.find_element(By.ID, "search-button").click()
-#
-#         with allure.step("Проверить сообщение об ошибке"):
-#             error_message = WebDriverWait(browser, 10).until(
-#                 EC.visibility_of_element_located((By.ID, "error-message")))
-#             assert error_message.text == "Фильм не найден"
-#
-#     @allure.story("Поиск с пустым полем")
-#     @allure.description("Проверка отображения сообщения при пустом поисковом запросе")
-#     def test_search_with_empty_query(self, browser):
-#         with allure.step("Открыть страницу поиска"):
-#             browser.get("https://api.kinopoisk.dev/v1.4/movie")
-#
-#         with allure.step("Оставить поле поиска пустым"):
-#             search_input = browser.find_element(By.ID, "search-input")
-#             search_input.clear()
-#
-#         with allure.step("Нажать кнопку поиска"):
-#             browser.find_element(By.ID, "search-button").click()
-#
-#         with allure.step("Проверить сообщение об ошибке"):
-#             error_message = WebDriverWait(browser, 10).until(
-#                 EC.visibility_of_element_located((By.ID, "empty-query-message")))
-#             assert "необходимо ввести данные для поиска" in error_message.text
-#
-#
-# @allure.feature("Переход на страницу фильма")
-# class TestMoviePage:
-#
-#     @allure.story("Переход на страницу фильма")
-#     @allure.description("Проверка перехода на страницу фильма из результатов поиска")
-#     def test_open_movie_page_from_search(self, browser):
-#         with allure.step("Выполнить поиск фильма"):
-#             browser.get("https://api.kinopoisk.dev/v1.4/movie")
-#             search_input = browser.find_element(By.ID, "search-input")
-#             search_input.send_keys("Интерстеллар")
-#             browser.find_element(By.ID, "search-button").click()
-#
-#         with allure.step("Выбрать первый результат из списка"):
-#             first_result = WebDriverWait(browser, 10).until(
-#                 EC.presence_of_element_located((By.CLASS_NAME, "movie-result")))
-#             first_result.click()
-#
-#         with allure.step("Проверить, что открылась страница фильма"):
-#             WebDriverWait(browser, 10).until(
-#                 EC.url_contains("/movie/"))
-#             assert "Интерстеллар" in browser.find_element(By.TAG_NAME, "h1").text
-#             assert browser.find_element(By.CLASS_NAME, "movie-info")
+
+def accept_cookies_if_present(browser):
+    try:
+        cookie_btn = WebDriverWait(browser, 5).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Принять')]"))
+        )
+        cookie_btn.click()
+    except:
+        pass
+
+
+@allure.feature("Поиск на Кинопоиске")
+class TestKinopoiskSearch:
+
+    @allure.story("Поиск по полному названию фильма")
+    def test_search_by_full_title(self, browser, api_headers):
+        movie_name = "Интерстеллар"
+
+        with allure.step("UI: Выполняем поиск"):
+            browser.get(KP_UI_URL)
+            accept_cookies_if_present(browser)
+
+            # Поиск поля ввода с несколькими вариантами локаторов
+            search_locators = [
+                (By.NAME, "kp_query"),
+                (By.CSS_SELECTOR, "input[placeholder='Фильмы, сериалы, персоны']"),
+                (By.XPATH, "//input[@type='text' and contains(@class, 'search')]")
+            ]
+
+            for locator in search_locators:
+                try:
+                    search_field = wait_and_send_keys(browser, locator, movie_name, 5)
+                    break
+                except:
+                    continue
+            else:
+                pytest.fail("Не удалось найти поле поиска")
+
+            # Отправка формы поиска
+            try:
+                search_field.send_keys(Keys.RETURN)
+            except:
+                try:
+                    search_button = WebDriverWait(browser, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, "//button[.//*[contains(@class, 'search')]]"))
+                    )
+                    search_button.click()
+                except:
+                    pytest.fail("Не удалось отправить форму поиска")
+
+            # Ожидание результатов
+            WebDriverWait(browser, WAIT_TIMEOUT).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".search_results, .empty-results"))
+            )
+
+        with allure.step("API: Проверяем результаты"):
+            api_params = {"query": movie_name, "limit": 5}
+            api_response = make_api_request("movie/search", api_params, api_headers)
+            assert api_response["total"] > 0, "API не вернул результаты"
+
+    @allure.story("Фильтрация по жанру и году")
+    def test_filter_by_genre_and_year(self, api_headers):
+        with allure.step("API: Получаем фильмы по жанру и году"):
+            api_params = {
+                "genres.name": "+фантастика",
+                "year": "2014",
+                "limit": 3
+            }
+            api_response = make_api_request("movie", api_params, api_headers)
+            assert len(api_response["docs"]) > 0
+
+    @allure.story("Поиск с исключением жанра")
+    def test_search_with_excluded_genre(self, api_headers):
+        with allure.step("API: Ищем драмы без криминала"):
+            api_params = {
+                "genres.name": "+драма",
+                "genres.name": "!криминал",
+                "limit": 3
+            }
+            api_response = make_api_request("movie", api_params, api_headers)
+            assert len(api_response["docs"]) > 0
+
+    @allure.story("Фильтрация по рейтингу")
+    def test_filter_by_rating(self, api_headers):
+        with allure.step("API: Ищем фильмы с рейтингом 7-10"):
+            api_params = {"rating.kp": "7-10", "limit": 3}
+            api_response = make_api_request("movie", api_params, api_headers)
+            assert len(api_response["docs"]) > 0
+
+    @allure.story("Комплексный поиск с несколькими параметрами")
+    def test_complex_search(self, api_headers):
+        with allure.step("API: Комплексный поиск"):
+            api_params = {
+                "year": "2020-2023",
+                "rating.kp": "7-10",
+                "genres.name": "+фантастика",
+                "genres.name": "!ужасы",
+                "limit": 3
+            }
+            api_response = make_api_request("movie", api_params, api_headers)
+            assert len(api_response["docs"]) > 0

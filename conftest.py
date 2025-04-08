@@ -17,7 +17,6 @@ def pytest_collection_modifyitems(config, items):
             if "test_ui" in item.nodeid:
                 item.add_marker(skip_ui)
 
-import pytest
-
 def pytest_configure(config):
     config.option.allure_report_dir = './allure-results'
+
