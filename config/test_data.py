@@ -13,8 +13,8 @@ class TestData:
     SEAT_NUMBER = "A5"
 
     # Auth test data
-    VALID_LOGIN = "warnbringer93"
-    VALID_PASSWORD = "!Lost4815162342"
+    VALID_LOGIN = "######"
+    VALID_PASSWORD = "######"
     INVALID_LOGIN = "wrong@example.com"
     INVALID_PASSWORD = "wrongpass"
 
